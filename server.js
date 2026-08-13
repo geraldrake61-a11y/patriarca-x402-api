@@ -19,7 +19,9 @@ const x402Spec = {
       network: 'eip155:8453', // Base Mainnet
       asset: USDC_BASE,
       amount: '10000', // 0.01 USDC (6 decimals)
+      maxAmountRequired: '10000',
       payTo: PATRIARCA_WALLET,
+      payToAddress: PATRIARCA_WALLET,
       extra: {
         name: 'USD Coin',
         version: '2'
