@@ -99,7 +99,7 @@ app.get('/openapi.json', (req, res) => {
 
 // x402 Handshake & Service Endpoint: POST /api/v1/summarize
 app.post('/api/v1/summarize', async (req, res) => {
-  const paymentHeader = req.headers['authorization'] || req.headers['x-402-payment'] || req.headers['payment-required'];
+  const paymentHeader = req.headers['x-payment'] || req.headers['authorization'] || req.headers['x-402-payment'] || req.headers['payment-required'];
 
   // 1. If no payment attached, return HTTP 402 with x402 spec
   if (!paymentHeader) {
