@@ -157,6 +157,6 @@ app.post('/api/v1/summarize', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Patriarca x402 API server running on port ${PORT}`);
 });
