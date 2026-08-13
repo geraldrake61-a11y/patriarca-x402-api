@@ -26,12 +26,19 @@ const x402Spec = {
       }
     }
   ],
+  extensions: {
+    bazaar: {
+      discoverable: true,
+      name: 'Patriarca AI Summarizer',
+      description: 'Ultra-fast AI text summarization powered by Groq Llama-3.3 70B',
+      category: 'WEB_SEARCH_RESEARCH'
+    }
+  },
   metadata: {
     provider: {
       name: 'Patriarca AI Services',
       description: 'Ultra-fast AI text summarization and extraction powered by Groq Llama-3.3 70B',
-      category: 'WEB_SEARCH_RESEARCH',
-      website: 'https://agent402.app'
+      category: 'WEB_SEARCH_RESEARCH'
     }
   }
 };
