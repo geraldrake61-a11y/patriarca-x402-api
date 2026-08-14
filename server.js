@@ -114,7 +114,8 @@ app.post('/api/v1/summarize', async (req, res) => {
 
   // 2. Process request using Groq LLM
   try {
-    if (!GROQ_API_KEY) {
+    const activeGroqKey = process.env.GROQ_API_KEY || req.headers['x-groq-api-key'];
+    if (!activeGroqKey) {
       return res.status(500).json({ error: 'Configuration Error', message: 'GROQ_API_KEY environment variable is missing on server.' });
     }
 
@@ -127,7 +128,7 @@ app.post('/api/v1/summarize', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_API_KEY}`
+        'Authorization': `Bearer ${activeGroqKey}`
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
