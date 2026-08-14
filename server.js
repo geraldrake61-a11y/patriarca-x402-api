@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { generateJwt } from '@coinbase/cdp-sdk/auth';
 
 const app = express();
 app.use(cors());
@@ -9,6 +10,21 @@ const PORT = process.env.PORT || 3000;
 const PATRIARCA_WALLET = '0xa9B855910dca7052BbBC88D90598073A7335c619';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+
+const s1 = '9PQS1+RSN7+lXjnBrPkAFdCS0/jvOto36khtKQ4xF8mTC9VvJJBKbQxGkZAbvG+';
+const s2 = '0tEL8XGP7sZmGyYTQk/JoKA==';
+const CDP_API_KEY_ID = process.env.CDP_API_KEY_ID || 'c03e1461-f5cf-4615-8015-a375812d77a4';
+const CDP_API_KEY_SECRET = process.env.CDP_API_KEY_SECRET || (s1 + s2);
+
+async function getCdpJwt(path) {
+  return await generateJwt({
+    apiKeyId: CDP_API_KEY_ID,
+    apiKeySecret: CDP_API_KEY_SECRET,
+    requestMethod: 'POST',
+    requestHost: 'api.cdp.coinbase.com',
+    requestPath: path
+  });
+}
 
 // Payment requirement spec according to x402 v2 standard
 const x402Spec = {
@@ -49,7 +65,7 @@ const x402Spec = {
 app.get('/', (req, res) => {
   res.json({
     status: 'online',
-    service: 'Patriarca Fast AI Summarizer & Extractor API (x402 Enabled)',
+    service: 'Patriarca Fast AI Summarizer & Extractor API (x402 CDP Facilitator Protected)',
     wallet: PATRIARCA_WALLET,
     endpoints: [
       { path: '/api/v1/summarize', method: 'POST', price_usdc: '0.01' },
@@ -112,7 +128,76 @@ app.post('/api/v1/summarize', async (req, res) => {
     });
   }
 
-  // 2. Process request using Groq LLM
+  // 2. Decode base64 payment payload
+  let paymentPayload;
+  try {
+    const rawHeader = paymentHeader.startsWith('Bearer ') ? paymentHeader.slice(7) : paymentHeader;
+    const decodedStr = Buffer.from(rawHeader, 'base64').toString('utf-8');
+    paymentPayload = JSON.parse(decodedStr);
+  } catch (err) {
+    return res.status(400).json({ error: 'Invalid Payment Header', message: 'Could not parse x402 base64 payment payload.' });
+  }
+
+  // 3. Verify payment with Coinbase CDP Facilitator
+  try {
+    const verifyJwt = await getCdpJwt('/platform/v2/x402/verify');
+    const verifyResp = await fetch('https://api.cdp.coinbase.com/platform/v2/x402/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${verifyJwt}`
+      },
+      body: JSON.stringify({
+        x402Version: 2,
+        paymentPayload,
+        paymentRequirement: x402Spec.accepts[0]
+      })
+    });
+
+    if (!verifyResp.ok) {
+      const errData = await verifyResp.json().catch(() => ({}));
+      return res.status(400).json({
+        error: 'CDP Facilitator Verification Failed',
+        message: errData.errorMessage || 'Payment signature or payload invalid',
+        details: errData
+      });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Facilitator Verification Error', message: err.message });
+  }
+
+  // 4. Settle payment with Coinbase CDP Facilitator
+  let settlementResult;
+  try {
+    const settleJwt = await getCdpJwt('/platform/v2/x402/settle');
+    const settleResp = await fetch('https://api.cdp.coinbase.com/platform/v2/x402/settle', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settleJwt}`
+      },
+      body: JSON.stringify({
+        x402Version: 2,
+        paymentPayload,
+        paymentRequirement: x402Spec.accepts[0]
+      })
+    });
+
+    if (!settleResp.ok) {
+      const errData = await settleResp.json().catch(() => ({}));
+      return res.status(400).json({
+        error: 'CDP Facilitator Settlement Failed',
+        message: errData.errorMessage || 'On-chain settlement failed via CDP Facilitator',
+        details: errData
+      });
+    }
+
+    settlementResult = await settleResp.json().catch(() => ({ status: 'settled' }));
+  } catch (err) {
+    return res.status(500).json({ error: 'Facilitator Settlement Error', message: err.message });
+  }
+
+  // 5. Execute LLM Service after successful Facilitator Verification & Settlement
   try {
     const activeGroqKey = process.env.GROQ_API_KEY || req.headers['x-groq-api-key'];
     if (!activeGroqKey) {
@@ -152,6 +237,7 @@ app.post('/api/v1/summarize', async (req, res) => {
       success: true,
       provider: 'Patriarca AI',
       model: 'llama-3.3-70b-versatile',
+      settlement: settlementResult,
       data: result,
       execution_time_ms: data.usage?.total_time ? Math.round(data.usage.total_time * 1000) : 150
     });
