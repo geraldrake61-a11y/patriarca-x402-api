@@ -38,8 +38,8 @@ const x402Spec = {
       asset: USDC_BASE,
       currency: USDC_BASE,
       usdcAddress: USDC_BASE,
-      amount: '10000', // 0.01 USDC (6 decimals)
-      maxAmountRequired: '10000',
+      amount: '1000', // 0.001 USDC (6 decimals)
+      maxAmountRequired: '1000',
       maxTimeoutSeconds: 3600,
       requiredDeadlineSeconds: 3600,
       payTo: PATRIARCA_WALLET,
