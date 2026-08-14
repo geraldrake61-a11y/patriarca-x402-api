@@ -36,6 +36,7 @@ const x402Spec = {
       scheme: 'exact',
       network: 'eip155:8453', // Base Mainnet
       asset: USDC_BASE,
+      usdcAddress: USDC_BASE,
       amount: '10000', // 0.01 USDC (6 decimals)
       maxAmountRequired: '10000',
       maxTimeoutSeconds: 3600,
