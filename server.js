@@ -160,6 +160,7 @@ app.post('/api/v1/summarize', async (req, res) => {
       body: JSON.stringify({
         x402Version: 2,
         paymentPayload,
+        paymentRequirements: x402Spec.accepts[0],
         paymentRequirement: x402Spec.accepts[0]
       })
     });
@@ -189,6 +190,7 @@ app.post('/api/v1/summarize', async (req, res) => {
       body: JSON.stringify({
         x402Version: 2,
         paymentPayload,
+        paymentRequirements: x402Spec.accepts[0],
         paymentRequirement: x402Spec.accepts[0]
       })
     });
