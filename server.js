@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import crypto from 'node:crypto';
+if (!globalThis.crypto) globalThis.crypto = crypto;
 import { generateJwt } from '@coinbase/cdp-sdk/auth';
 
 const app = express();
