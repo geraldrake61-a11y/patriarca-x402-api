@@ -38,6 +38,7 @@ const x402Spec = {
       asset: USDC_BASE,
       amount: '10000', // 0.01 USDC (6 decimals)
       maxAmountRequired: '10000',
+      maxTimeoutSeconds: 3600,
       payTo: PATRIARCA_WALLET,
       payToAddress: PATRIARCA_WALLET,
       extra: {
@@ -139,6 +140,9 @@ app.post('/api/v1/summarize', async (req, res) => {
     if (paymentPayload && typeof paymentPayload === 'object') {
       paymentPayload.x402Version = paymentPayload.x402Version || 2;
       paymentPayload.accepted = paymentPayload.accepted || paymentPayload.acceptedRequirement || x402Spec.accepts[0];
+      if (paymentPayload.accepted && !paymentPayload.accepted.maxTimeoutSeconds) {
+        paymentPayload.accepted.maxTimeoutSeconds = 3600;
+      }
     }
   } catch (err) {
     return res.status(400).json({ error: 'Invalid Payment Header', message: 'Could not parse x402 base64 payment payload.' });
