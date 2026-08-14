@@ -36,24 +36,49 @@ const x402Spec = {
       scheme: 'exact',
       network: 'eip155:8453', // Base Mainnet
       asset: USDC_BASE,
+      currency: USDC_BASE,
       usdcAddress: USDC_BASE,
       amount: '10000', // 0.01 USDC (6 decimals)
       maxAmountRequired: '10000',
       maxTimeoutSeconds: 3600,
+      requiredDeadlineSeconds: 3600,
       payTo: PATRIARCA_WALLET,
+      recipient: PATRIARCA_WALLET,
       payToAddress: PATRIARCA_WALLET,
       extra: {
         name: 'USD Coin',
-        version: '2'
+        version: '2',
+        credentialTypes: ['authorization']
       }
     }
   ],
   extensions: {
     bazaar: {
-      discoverable: true,
-      name: 'Patriarca AI Summarizer',
-      description: 'Ultra-fast AI text summarization powered by Groq Llama-3.3 70B',
-      category: 'WEB_SEARCH_RESEARCH'
+      info: {
+        name: 'Patriarca AI Summarizer',
+        description: 'Ultra-fast AI text summarization and key-point extraction powered by Groq Llama-3.3 70B. Returns structured JSON summaries with bullet points.',
+        method: 'POST',
+        path: '/api/v1/summarize',
+        input: {
+          type: 'object',
+          properties: {
+            text: { type: 'string', description: 'The raw text or article to be summarized' },
+            max_words: { type: 'integer', description: 'Maximum words for the summary (default: 100)' }
+          },
+          required: ['text']
+        },
+        output: {
+          type: 'object',
+          properties: {
+            summary: { type: 'string', description: 'Concise summary of the input text' },
+            bullet_points: { type: 'array', items: { type: 'string' }, description: 'Key points extracted from the text' }
+          }
+        }
+      },
+      schema: {
+        '$schema': 'https://json-schema.org/draft/2020-12/schema',
+        type: 'object'
+      }
     }
   },
   metadata: {
