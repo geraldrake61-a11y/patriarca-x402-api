@@ -136,6 +136,11 @@ app.post('/api/v1/summarize', async (req, res) => {
     const rawHeader = paymentHeader.startsWith('Bearer ') ? paymentHeader.slice(7) : paymentHeader;
     const decodedStr = Buffer.from(rawHeader, 'base64').toString('utf-8');
     paymentPayload = JSON.parse(decodedStr);
+    if (paymentPayload && typeof paymentPayload === 'object') {
+      if (!paymentPayload.accepted && paymentPayload.acceptedRequirement) {
+        paymentPayload.accepted = paymentPayload.acceptedRequirement;
+      }
+    }
   } catch (err) {
     return res.status(400).json({ error: 'Invalid Payment Header', message: 'Could not parse x402 base64 payment payload.' });
   }
