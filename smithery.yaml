@@ -1,0 +1,8 @@
+# Smithery configuration for Patriarca AI Summarizer
+# Smithery indexes MCP tools automatically from public GitHub repos with this file.
+startCommand:
+  type: stdio
+  config:
+    command: node
+    args:
+      - index-mcp.js
