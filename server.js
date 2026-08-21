@@ -3,6 +3,9 @@ import cors from 'cors';
 import crypto from 'node:crypto';
 if (!globalThis.crypto) globalThis.crypto = crypto;
 import { generateJwt } from '@coinbase/cdp-sdk/auth';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 const app = express();
 app.use(cors());
@@ -90,6 +93,128 @@ const x402Spec = {
   }
 };
 
+// Map to track active SSE transports for MCP clients (Smithery / Claude / Cursor)
+const sseTransports = new Map();
+
+function createMcpServer() {
+  const mcpServer = new Server(
+    {
+      name: "patriarca-summarize",
+      version: "1.0.0",
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+
+  mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+    return {
+      tools: [
+        {
+          name: "summarize_text",
+          description: "Summarize raw text or articles into concise key points using Groq Llama-3.3 70B.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              text: {
+                type: "string",
+                description: "The text content or article to summarize",
+              },
+              max_words: {
+                type: "integer",
+                description: "Optional maximum word count for summary (default: 100)",
+              },
+            },
+            required: ["text"],
+          },
+        },
+      ],
+    };
+  });
+
+  mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+    if (request.params.name === "summarize_text") {
+      const { text, max_words = 100 } = request.params.arguments;
+      try {
+        const activeGroqKey = process.env.GROQ_API_KEY;
+        if (!activeGroqKey) {
+          return { isError: true, content: [{ type: "text", text: "GROQ_API_KEY is not configured on server" }] };
+        }
+        const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeGroqKey}`
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              { role: 'system', content: `Summarize the user text concisely in under ${max_words} words. Return JSON: {"summary": "...", "bullet_points": [...]}` },
+              { role: 'user', content: text }
+            ],
+            response_format: { type: 'json_object' }
+          })
+        });
+
+        if (!groqResp.ok) {
+          const errText = await groqResp.text();
+          return { isError: true, content: [{ type: "text", text: `Groq error: ${errText}` }] };
+        }
+
+        const data = await groqResp.json();
+        const result = JSON.parse(data.choices[0].message.content);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      } catch (err) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: `Error summarizing text: ${err.message}`,
+            },
+          ],
+        };
+      }
+    }
+    throw new Error(`Tool not found: ${request.params.name}`);
+  });
+
+  return mcpServer;
+}
+
+// SSE MCP Endpoint for Remote MCP Clients (Smithery / Claude / Cursor)
+app.get('/sse', async (req, res) => {
+  console.log('[MCP SSE] New client connection request');
+  const transport = new SSEServerTransport('/messages', res);
+  sseTransports.set(transport.sessionId, transport);
+
+  transport.onclose = () => {
+    console.log(`[MCP SSE] Connection closed: ${transport.sessionId}`);
+    sseTransports.delete(transport.sessionId);
+  };
+
+  const mcpServer = createMcpServer();
+  await mcpServer.connect(transport);
+});
+
+app.post('/messages', async (req, res) => {
+  const sessionId = req.query.sessionId;
+  const transport = sseTransports.get(sessionId);
+  if (!transport) {
+    return res.status(404).json({ error: 'Session not found or expired' });
+  }
+  await transport.handlePostMessage(req, res);
+});
+
 // Healthcheck & Info
 app.get('/', (req, res) => {
   res.json({
@@ -97,8 +222,8 @@ app.get('/', (req, res) => {
     service: 'Patriarca Fast AI Summarizer & Extractor API (x402 CDP Facilitator Protected)',
     wallet: PATRIARCA_WALLET,
     endpoints: [
-      { path: '/api/v1/summarize', method: 'POST', price_usdc: '0.01' },
-      { path: '/api/v1/extract', method: 'POST', price_usdc: '0.01' }
+      { path: '/api/v1/summarize', method: 'POST', price_usdc: '0.001' },
+      { path: '/sse', method: 'GET', description: 'MCP Protocol Server-Sent Events Endpoint for Smithery / Remote MCP' }
     ],
     x402Spec
   });

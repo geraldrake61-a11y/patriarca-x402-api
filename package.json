@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@coinbase/cdp-sdk": "^1.55.0",
-    "@modelcontextprotocol/sdk": "^1.0.1",
-    "cors": "^2.8.5",
-    "express": "^4.21.0"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "cors": "^2.8.6",
+    "express": "^4.22.2"
   }
 }
