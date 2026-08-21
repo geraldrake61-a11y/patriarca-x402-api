@@ -215,6 +215,44 @@ app.post('/messages', async (req, res) => {
   await transport.handlePostMessage(req, res);
 });
 
+const serverCard = {
+  serverInfo: {
+    name: "Patriarca AI Summarizer",
+    version: "1.0.0"
+  },
+  authentication: {
+    required: false
+  },
+  tools: [
+    {
+      name: "summarize_text",
+      description: "Summarize raw text or articles into concise key points using Groq Llama-3.3 70B via x402 paid microservice (0.001 USDC on Base).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          text: {
+            type: "string",
+            description: "The text content or article to summarize"
+          },
+          max_words: {
+            type: "integer",
+            description: "Optional maximum word count for summary (default: 100)"
+          }
+        },
+        required: ["text"]
+      }
+    }
+  ],
+  resources: [],
+  prompts: []
+};
+
+// Smithery & MCP Discovery Endpoints
+app.get(['/.well-known/mcp/server-card.json', '/.well-known/mcp.json', '/server-card.json'], (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json(serverCard);
+});
+
 // Healthcheck & Info
 app.get('/', (req, res) => {
   res.json({
@@ -223,7 +261,8 @@ app.get('/', (req, res) => {
     wallet: PATRIARCA_WALLET,
     endpoints: [
       { path: '/api/v1/summarize', method: 'POST', price_usdc: '0.001' },
-      { path: '/sse', method: 'GET', description: 'MCP Protocol Server-Sent Events Endpoint for Smithery / Remote MCP' }
+      { path: '/sse', method: 'GET', description: 'MCP Protocol Server-Sent Events Endpoint for Smithery / Remote MCP' },
+      { path: '/.well-known/mcp/server-card.json', method: 'GET', description: 'Smithery Static Server Card' }
     ],
     x402Spec
   });

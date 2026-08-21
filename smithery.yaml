@@ -6,3 +6,6 @@ startCommand:
     command: node
     args:
       - index-mcp.js
+configSchema:
+  type: object
+  properties: {}
